@@ -40,7 +40,7 @@ public class Median : IBinarySerialize
 
     public SqlDouble Terminate()
     {
-        this.values.Sort();
+        values.Sort();
 
         if (values.Count % 2 == 1)
         {
@@ -83,7 +83,7 @@ public class Median : IBinarySerialize
 [Serializable()]
 [SqlUserDefinedAggregate(Format.UserDefined,
     IsNullIfEmpty = true,
-    Name = "MEDIAN",
+    Name = "MAD",
     IsInvariantToDuplicates = false,
     IsInvariantToOrder = true,
     IsInvariantToNulls = true,
@@ -109,7 +109,7 @@ public class MedianAbsoluteDeviation : IBinarySerialize
 
     public void Merge(MedianAbsoluteDeviation other)
     {
-        this.values.AddRange(other.values);
+        values.AddRange(other.values);
     }
 
     public SqlDouble Terminate()
