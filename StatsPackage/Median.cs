@@ -13,7 +13,7 @@ using System.IO;
     IsInvariantToDuplicates = false,
     IsInvariantToOrder = true,
     IsInvariantToNulls = true,
-    MaxByteSize = 8000)]
+    MaxByteSize = -1)]
 public class Median : IBinarySerialize
 {
     private List<double> values;
@@ -25,12 +25,10 @@ public class Median : IBinarySerialize
 
     public void Accumulate(SqlDouble num)
     {
-        if (num.IsNull)
+        if (!num.IsNull)
         {
-            return;
+            this.values.Add(num.Value);
         }
-
-        this.values.Add(num.ToSqlDecimal().ToDouble());
     }
 
     public void Merge(Median other)
@@ -40,43 +38,46 @@ public class Median : IBinarySerialize
 
     public SqlDouble Terminate()
     {
+        
+        if (values.Count == 0)
+        {
+            return SqlDouble.Null;
+        }
+
         values.Sort();
+
+        int index = values.Count / 2;
 
         if (values.Count % 2 == 1)
         {
-            return new SqlDouble(values[values.Count / 2]);
+            return values[index];
         }
         else
         {
-            return new SqlDouble((values[(values.Count / 2) - 1] + values[values.Count / 2]) / 2);
+            return (double)(values[index] + values[index - 1]) / 2.0d;
         }
     }
 
     public void Read(BinaryReader r)
     {
-        String[] vals = r.ReadString().Split(new char[] { ',' });
+        Init();
 
-        foreach (String value in vals)
+        int numValues = r.ReadInt32();
+
+        for (int i = 0; i < numValues; i++)
         {
-            double val;
-
-            if (Double.TryParse(value,out val))
-            {
-                values.Add(val);
-            }
+            values.Add(r.ReadDouble());
         }
     }
 
     public void Write(BinaryWriter w)
     {
-        String[] strValues = new string[values.Count];
+        w.Write(values.Count);
 
-        for (int i = 0; i < values.Count; i++)
+        foreach (double value in values)
         {
-            strValues[i] = values.ToString();
+            w.Write(value);
         }
-        
-        w.Write(String.Join(",", strValues));
     }
 }
 
@@ -87,7 +88,7 @@ public class Median : IBinarySerialize
     IsInvariantToDuplicates = false,
     IsInvariantToOrder = true,
     IsInvariantToNulls = true,
-    MaxByteSize = 8000)]
+    MaxByteSize = -1)]
 public class MedianAbsoluteDeviation : IBinarySerialize
 {
     private List<double> values;
@@ -99,73 +100,76 @@ public class MedianAbsoluteDeviation : IBinarySerialize
 
     public void Accumulate(SqlDouble num)
     {
-        if (num.IsNull)
+        if (!num.IsNull)
         {
-            return;
+            this.values.Add(num.Value);
         }
-
-        this.values.Add(num.ToSqlDecimal().ToDouble());
     }
 
     public void Merge(MedianAbsoluteDeviation other)
     {
-        values.AddRange(other.values);
+        this.values.AddRange(other.values);
     }
 
     public SqlDouble Terminate()
     {
+        if (values.Count == 0)
+        {
+            return SqlDouble.Null;
+        }
+
         this.values.Sort();
         double median;
+        int index = values.Count / 2;
         List<double> deviations = new List<double>();
 
         if (values.Count % 2 == 1)
         {
-            median = values[(int)(values.Count / 2)];
+            median = values[index];
         }
         else
         {
-            median = (values[(values.Count / 2) - 1] + values[values.Count / 2]) / 2;
+            median = (values[index - 1] + values[index]) / 2.0d;
         }
 
         foreach (double value in values)
         {
             deviations.Add(Math.Abs(value - median));
         }
-        
+   
+        index = deviations.Count / 2;
+
+        deviations.Sort();
+
         if (deviations.Count % 2 == 1)
         {
-            return new SqlDouble(deviations[(int)(deviations.Count / 2)]);
+            return (double)deviations[index];
         }
         else
         {
-            return new SqlDouble((deviations[(deviations.Count / 2) - 1] + deviations[deviations.Count / 2]) / 2);
+            return (double)(deviations[index - 1] + deviations[index]) / 2;
         }
     }
 
     public void Read(BinaryReader r)
     {
-        String[] vals = r.ReadString().Split(new char[] { ',' });
+        Init();
 
-        foreach (String value in vals)
+        int numValues = r.ReadInt32();
+
+        for (int i = 0; i < numValues; i++)
         {
-            double val;
-
-            if (Double.TryParse(value, out val))
-            {
-                values.Add(val);
-            }
+            values.Add(r.ReadDouble());
         }
     }
 
     public void Write(BinaryWriter w)
     {
-        String[] strValues = new string[values.Count];
+        w.Write(values.Count);
 
-        for (int i = 0; i < values.Count; i++)
+        foreach (double value in values)
         {
-            strValues[i] = values.ToString();
+            w.Write(value);
         }
-
-        w.Write(String.Join(",", strValues));
     }
 }
